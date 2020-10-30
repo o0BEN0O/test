@@ -163,50 +163,92 @@ int IsSubnetMask(const char* subnet)
 }
 
 
-int test(void)
+void range_start_ip_calc(const char *ip,const char *netmask,char *start_ip)
 {
-	char ipv4Netsub[64] = {0};
-    char ipv4String[64]={0};
-    char ipv4Msk[64]={0};
-    char ipv4StringTmp[64]={0};
-    unsigned long ipv4=0,ipv4msk=0;
-    unsigned long ipv4Start=0,ipv4End=0;
-    struct sockaddr_in   add;
+	unsigned long ipv4=0,ipv4msk=0;
+	unsigned long ipv4subnet=0;
+	unsigned long start_ip_int=0;
+	unsigned long tmp=0;
+	struct sockaddr_in addr;
 
-    //strcpy(ipv4String,"192.168.1.230");
-    //strcpy(ipv4Msk,"255.248.0.0");
+	ipv4 = inet_addr(ip);
+	ipv4msk = inet_addr(netmask);
 
-    //strcpy(ipv4String,"10.0.0.0");
-    //strcpy(ipv4Msk,"255.248.0.0");
-    strcpy(ipv4String,"198.18.248.1");
-    strcpy(ipv4Msk,"255.255.255.0");
+	ipv4subnet = ipv4&ipv4msk;
+	//printf("%lx\n",ipv4subnet);
+	tmp=(ipv4subnet>>24)+1;
+	//printf("%lx\n",tmp);
+	start_ip_int = (tmp<<24)|(ipv4subnet&0xffffff);
+	//printf("%lx\n",start_ip_int);
+	addr.sin_addr.s_addr=start_ip_int;
 
-    strcpy(ipv4StringTmp,ipv4String);
-    if(true == IsIpv4(ipv4StringTmp))
-    {
-        printf("%s is ipv4\n",ipv4String);
-    }else{
-        printf("%s is not ipv4\n",ipv4String);
-        return -1;
-    }
-    ipv4=inet_addr(ipv4String);
-    ipv4msk=inet_addr(ipv4Msk);
-	printf("ipvmas %lx\n",ipv4msk);
-	if (((ipv4msk-1) | ipv4msk) != 0xffffffff){
-		printf("illega netmask\n");
-	}
-    ipv4Start=ipv4&ipv4msk;
-    add.sin_addr.s_addr=ipv4Start;
-	strncpy(ipv4Netsub,inet_ntoa(add.sin_addr),strlen(inet_ntoa(add.sin_addr)));
-    printf("ipv4 start %s+1\n",ipv4Netsub);
-    ipv4End=ipv4|(~ipv4msk);
-	//printf("%lx\n",ipv4End);
-    add.sin_addr.s_addr=ipv4End;
-    printf("ipv4 End %s-1\n",inet_ntoa(add.sin_addr));
-	ipv4=inet_addr(inet_ntoa(add.sin_addr));
-	ipaddr_range_check(ipv4Netsub,ipv4Msk,"198.18.248.1","198.18.255.255");
-    return 0;
+	strncpy(start_ip,inet_ntoa(addr.sin_addr),strlen(inet_ntoa(addr.sin_addr)));
+
+	printf("start_ip %s\n",start_ip);
 }
+
+void range_end_ip_calc(const char *ip,const char *netmask,char *end_ip)
+{
+	unsigned long ipv4=0,ipv4msk=0;
+	unsigned long ipv4subnet=0;
+	unsigned long end_ip_int=0;
+	unsigned long tmp=0;
+	struct sockaddr_in addr;
+
+	ipv4 = inet_addr(ip);
+	ipv4msk = inet_addr(netmask);
+
+	ipv4subnet = ipv4&ipv4msk;
+
+	end_ip_int = (ipv4subnet|(~ipv4msk))&0x00000000ffffffff;
+	tmp=(end_ip_int>>24)-1;
+	end_ip_int = (tmp<<24)|(end_ip_int&0xffffff);
+	addr.sin_addr.s_addr=end_ip_int;
+
+	strncpy(end_ip,inet_ntoa(addr.sin_addr),strlen(inet_ntoa(addr.sin_addr)));
+
+	printf("end_ip %s\n",end_ip);
+}
+
+int ip_range_check(const char *ip,const char *netmask,char *start_ip,char *end_ip)
+//void ip_range_check(const char *ip,const char *netmask)
+{
+	char range_start_ip[32]="\0";
+	char range_end_ip[32]="\0";
+	unsigned long int_range_start_ip;
+	unsigned long int_range_end_ip;
+	unsigned long int_start_ip;
+	unsigned long int_end_ip;
+	unsigned long part1,part2,part3,part4;
+
+	range_start_ip_calc(ip,netmask,range_start_ip);
+	range_end_ip_calc(ip,netmask,range_end_ip);
+
+	sscanf(range_start_ip,"%ld.%ld.%ld.%ld",&part1,&part2,&part3,&part4);
+	int_range_start_ip=(part1<<24)|(part2<<16)|(part3<<8)|(part4);
+	sscanf(range_end_ip,"%ld.%ld.%ld.%ld",&part1,&part2,&part3,&part4);
+	int_range_end_ip = (part1<<24)|(part2<<16)|(part3<<8)|(part4);
+
+	sscanf(start_ip,"%ld.%ld.%ld.%ld",&part1,&part2,&part3,&part4);
+	int_start_ip = (part1<<24)|(part2<<16)|(part3<<8)|(part4);
+
+	sscanf(end_ip,"%ld.%ld.%ld.%ld",&part1,&part2,&part3,&part4);
+	int_end_ip = (part1<<24)|(part2<<16)|(part3<<8)|(part4);
+
+	if(int_start_ip>int_end_ip){
+		printf("1.%s %s\n",start_ip,end_ip);
+		return -1;
+	}else if(int_start_ip<int_range_start_ip){
+		printf("2.%s %s\n",start_ip,range_start_ip);
+		return -1;
+	}else if(int_end_ip>int_range_end_ip){
+		printf("3.%s %s\n",end_ip,range_end_ip);
+		return -1;
+	}
+	return 0;
+	//sscanf(range_end_ip,"%d.%d.%d.%d",int_range_start_ip[0],int_range_start_ip[1],int_range_start_ip[2],int_range_start_ip[3]);
+}
+
 
 void subnet_calc(const char *ip,const char *netmask,char *subnet)
 {
@@ -226,7 +268,7 @@ void subnet_calc(const char *ip,const char *netmask,char *subnet)
 	//printf("subnet %s \n",subnet);
 }
 
-void write_dhcpd_conf(const char *subnet,const char *netmask,const char *start_ip,const char *end_ip,const char*main_dns,const char*snd_dns,int lease_time)
+void write_dhcpd_conf(char *ip,char *subnet,char *netmask,char *start_ip,char *end_ip,int lease_time)
 {
 	char dhcpd_conf[1024]="\0";
 	int fd=0;
@@ -244,123 +286,21 @@ ignore client-updates;\n\
 \n\
 subnet %s netmask %s            {\n\
 \n\
-        option routers                               198.18.248.1;\n\
-        option subnet-mask                           255.255.248.0;\n\
+        option routers                               %s;\n\
+        option subnet-mask                           %s;\n\
 \n\
         option time-offset                           -18000; # Eastern Standard Time\n\
         range dynamic-bootp                          %s %s;\n\
         option domain-name                           \"imx8mmevk\";\n\
-        option domain-name-servers                   %s,%s;\n\
+        option domain-name-servers                   8.8.8.8,8.8.4.4;;\n\
         default-lease-time                           %d;\n\
         max-lease-time                               43200;\n\
 \n\
-}\n",subnet,netmask,start_ip,end_ip,main_dns,snd_dns,lease_time);
+}\n",subnet,netmask,ip,netmask,start_ip,end_ip,lease_time);
 	write(fd,dhcpd_conf,strlen(dhcpd_conf));
-	clsoe(fd);
-	return 0;
-#if 0
-	struct stat file;
-	int start;
-	int len;
-	int file_size;
-	int fd=0;
-	char *dhcp;
-	char *point;
-	char *end_point;
-	char *buf;
-	char *space_point;
-	int space_cnt=0;
-	int i,j=0;
-
-	fd = open(path_dhcp_conf,O_RDWR);
-	if(fd < 0){
-		perror("open");
-		printf("open fail!");
-		close(fd);
-		return;
-	}
-	stat(path_dhcp_conf,&file);
-	file_size = file.st_size;
-	dhcp = (char *)malloc(file_size);
-	read(fd,dhcp,file_size);
-	printf("dhcp_conf %s\n",dhcp);
-
-	for(i=0;i<sizeof(dhcp_conf)/sizeof(dhcp_conf[0]);i++){
-		printf("dhcpd_conf[%d] %s\n",i,dhcp_conf[i].options);
-		point = strstr(dhcp,dhcp_conf[i].options);
-		printf("point %s\n",point);
-		start = (point-dhcp);
-		end_point = strstr(point,dhcp_conf[i].end);
-		printf("end point %s\n",end_point);
-		len = (end_point-point);
-		printf("len %d",len);
-		if(strncmp(dhcp_conf[i].options,SUBNET,strlen(SUBNET))==0){
-			space_cnt = (len-strlen(dhcp_conf[i].options)-3-strlen(subnet)-strlen(NETMASK)-strlen(netmask)-strlen(dhcp_conf[i].end))+1;
-			printf("space_cnt %d\n",space_cnt);
-			space_point = (char *)malloc(space_cnt);
-			for(j=0;j<space_cnt;j++)
-				strncpy(space_point+j,space,1);
-			buf = (char *)malloc(len+1);
-			sprintf(buf,"%s %s %s %s%s%s",dhcp_conf[i].options,subnet,NETMASK,netmask,space_point,dhcp_conf[i].end);
-		}
-		if(strncmp(dhcp_conf[i].options,IP_RANGE,strlen(IP_RANGE))==0){
-			space_cnt = (len-strlen(dhcp_conf[i].options)-strlen(start_ip)-strlen(end_ip)-strlen(dhcp_conf[i].end));
-			space_point = (char *)malloc(space_cnt);
-			for(j=0;j<space_cnt;j++)
-				strncpy(space_point+j,space,1);
-			buf = (char *)malloc(len+1);
-			sprintf(buf,"%s%s%s,%s%s",dhcp_conf[i].options,space_point,start_ip,end_ip,dhcp_conf[i].end);
-		}
-		if(strncmp(dhcp_conf[i].options,DNS,strlen(DNS))==0){
-			space_cnt = (len-strlen(dhcp_conf[i].options)-strlen(main_dns)-strlen(snd_dns)-strlen(dhcp_conf[i].end));
-			space_point = (char *)malloc(space_cnt);
-			for(j=0;j<space_cnt;j++)
-				strncpy(space_point+j,space,1);
-			buf = (char *)malloc(len+1);
-			sprintf(buf,"%s%s%s,%s%s",dhcp_conf[i].options,space_point,main_dns,snd_dns,dhcp_conf[i].end);
-		}
-		if(strncmp(dhcp_conf[i].options,LEASE_TIME,strlen(LEASE_TIME))==0){
-			space_cnt = (len-strlen(dhcp_conf[i].options)-sizeof(lease_time)-strlen(dhcp_conf[i].end));
-			space_point = (char *)malloc(space_cnt);
-			for(j=0;j<space_cnt;j++)
-				strncpy(space_point+j,space,1);
-			buf = (char *)malloc(len+1);
-			sprintf(buf,"%s%s%d%s",dhcp_conf[i].options,space_point,lease_time,dhcp_conf[i].end);
-		}
-		lseek(fd,start,SEEK_SET);
-		write(fd,buf,len+1);
-		free(buf);
-		free(space_point);
-	}
-	//free(buf);
-	//free(space_point);
-	free(dhcp);
 	close(fd);
-	return;
-#if 0
-	len = (end_point-point);
-	space_cnt = (len-strlen(routers)-strlen(router_addr)-strlen(end))+1;
-	space_point = (char *)malloc(space_cnt);
-	for(i=0;i<space_cnt;i++){
-		strncpy(space_point+i,space,1);
-	}
-	printf("space_cnt %d\n",space_cnt);
-	buf = (char *)malloc(strlen(routers)+strlen(router_addr)+strlen(end)+space_cnt);
-	sprintf(buf,"%s%s%s%s",routers,space_point,router_addr,end);
-	printf("buf %s\n",buf);
-	lseek(fd,start,SEEK_SET);
-	write(fd,buf,len+1);
-	
-	free(dhcp);
-	free(buf);
-	free(space_point);
-	//free(buf);
-	close(fd);
-	return;
-#endif
-#endif
 }
-
+#if 0
 int dhcp_server_setting(const char *ip,
 const char *netmask,
 const char *start_ip,
@@ -394,35 +334,25 @@ int lease_time)
 		return -1;
 	}
 
-	if(CheckIPAddressFormat(main_dns) <= 0){
-		printf("error main_dns address\n");
-		return -1;
-	}
-
-	if(CheckIPAddressFormat(snd_dns) <= 0){
-		printf("error main_dns address\n");
-		return -1;
-	}
-
-	if(ipaddr_range_check(subnet,netmask,start_ip,end_ip) < 0){
+	if(ip_range_check(ip,netmask,start_ip,end_ip) < 0){
 		printf("error ipaddr range\n");
 		return -1;
 	}
 
-	if(lease_time > max_lease_time){
+	if(lease_time > max_lease_time||lease_time<0){
 		printf("lease_time is over %d\n",max_lease_time);
 		return -1;
 	}
 
-	write_dhcpd_conf(subnet,netmask,start_ip,end_ip,main_dns,snd_dns,lease_time);
+	write_dhcpd_conf(ip,subnet,netmask,start_ip,end_ip,lease_time);
 
 	return 0;
 }
-
+#endif
 void main()
 {
 	int ret;
 	//test();
-	ret = dhcp_server_setting("198.168.202.1","255.255.255.0","198.168.202.2","198.168.202.100","198.168.202.11","198.168.202.22",21800);
+	 write_dhcpd_conf("198.168.202.1","198.168.202.0","255.255.255.0","198.168.202.10","198.168.202.100",21800);
 }
 
