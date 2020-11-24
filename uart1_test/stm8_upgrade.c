@@ -540,12 +540,14 @@ int stm8_upgrade_rsp(void)
 	int ret=-1;
 	int timeout=0;
 	uint8_t rx_date;
+	//_modbus_receive_msg(ctx,&rx_date,1);
 	while(ret==-1&&timeout!=1000){
-		ret=read(fd,&rx_date,1);
+		ret=read(fd,&rx_date,UART_DATA_BUFF_LEN);
 		//printf("timeout %d\n",timeout);
 		timeout+=100;
 		usleep(100*1000);
 	}
+
 	if(rx_date!=0x79){
 		printf("return error %2x\n",rx_date);
 		return -1;
@@ -568,16 +570,38 @@ int stm8_upgrade_program(char *mcu_filename)
 	int mcu_bin_size=0;
 	int image_offset_size=0;
 	int pre_date_size=0;
-	uint32_t addr=0x00009000;
+	//uint32_t addr=0x00009ff0;
+	uint32_t addr=0x00008ff0;
 	uint8_t start_date=0x7f;
-	uint8_t end_date[2]={0x21,0xde};
-	uint8_t restart_date[5]={0x00,0x00,0x90,0x00,0x90};
 	uint8_t head_date[2]={0x31,0xce};
+	uint8_t end_date[2]={0x21,0xde};
+	//uint8_t restart_date[5]={0x00,0x00,0xa0,0x00,0xa0};
+	uint8_t restart_date[5]={0x00,0x00,0x90,0x00,0x90};
 	uint8_t package_head[5];
 	uint8_t package_date[130];
-	mcu_bin = fopen(mcu_filename,"r");
-	if(mcu_bin==NULL)
+	int zero_num=0;
+	#if 0
+	write(fd,end_date,2);
+	if(stm8_upgrade_rsp()!=0){
+		printf("4\n");
+		fclose(mcu_bin);
 		return -1;
+	}
+
+	write(fd,restart_date,5);
+	if(stm8_upgrade_rsp()!=0){
+		printf("5\n");
+		fclose(mcu_bin);
+		return -1;
+	}
+	return 0;
+	#endif
+	printf("enter stm8_upgrade_program");
+	mcu_bin = fopen(mcu_filename,"r");
+	if(mcu_bin==NULL){
+		printf("open failed\n");
+		return -1;
+	}
 
 	ret=fread(head_info,1,16,mcu_bin);
 	if(ret!=16){
@@ -613,12 +637,15 @@ int stm8_upgrade_program(char *mcu_filename)
 	}
 	free(date_buf);
 
+	mcu_bin_size+=16;
+
 	write(fd,&start_date,1);	
 	if(stm8_upgrade_rsp()!=0){
 		printf("0\n");
 		fclose(mcu_bin);
 		return -1;
 	}
+	printf("1.enter stm8_upgrade_program\n");
 
 	for(i=0;image_offset_size<mcu_bin_size;i++){
 		write(fd,head_date,2);
@@ -649,8 +676,12 @@ int stm8_upgrade_program(char *mcu_filename)
 
 		printf("date_length %d\n",date_length);
 
+		//if(date_length<128){
+		//	zero_num=date_length%4;
+		//	date_length+=zero_num;
+		//}
 		package_date[index++]=date_length-1;
-		if(fseek(mcu_bin,image_offset_size+16,SEEK_SET)!=0){
+		if(fseek(mcu_bin,image_offset_size,SEEK_SET)!=0){
 				perror("fseek error\n");
 				fclose(mcu_bin);
 				return -1;
@@ -662,10 +693,12 @@ int stm8_upgrade_program(char *mcu_filename)
 		}
 		index+=date_length;
 
-		if(date_length<128){
-			package_date[index++]=0x00;
-			date_length++;
-			package_date[0]=date_length-1;
+		if(date_length<128&&date_length%4){
+			zero_num=(4-(date_length%4));
+			printf("zeronum %d\n",zero_num);
+			package_date[0]=(zero_num+date_length)-1;
+			for(k=0;k<zero_num;k++)
+				package_date[index++]=0x00;
 		}
 		
 		package_date[index++]=cal_stm8_upgrade_package_checksum(package_date,date_length+1);
@@ -684,6 +717,7 @@ int stm8_upgrade_program(char *mcu_filename)
 		image_offset_size+=date_length;
 		printf("offset %d,total%d\n",image_offset_size,mcu_bin_size);
 	}
+		printf("enter stm8_upgrade_program");
 
 	write(fd,end_date,2);
 	if(stm8_upgrade_rsp()!=0){
@@ -691,6 +725,7 @@ int stm8_upgrade_program(char *mcu_filename)
 		fclose(mcu_bin);
 		return -1;
 	}
+		printf("enter stm8_upgrade_program");
 
 	write(fd,restart_date,5);
 	if(stm8_upgrade_rsp()!=0){
@@ -725,9 +760,11 @@ int main (int argc, char *argv[])
 	ad_detect.command = 0x03;
 	ad_detect.Length = 1;
 	u8 date[UART_DATA_BUFF_LEN]={0x01};
+	char file_path[256]="\0";
 	//u8 date[UART_DATA_BUFF_LEN]={0x01,0x7d,0x00,0x00,0xb1,0x0d,0x02,0xc3,0x0a};
 	//u8 rx_buf[UART_DATA_BUFF_LEN]={0x00};
 	//_ad_date_format ad_date_set[8];
+	strcpy(file_path,argv[1]);
 
 #if 0
 	uart_tx(ad_detect,date);
@@ -758,7 +795,7 @@ int main (int argc, char *argv[])
 	}
 	sleep(1);
 	#endif
-	stm8_upgrade_program("/raymarine/Data/firmware/STM8L052_V004_crc.bin");
+	stm8_upgrade_program(file_path);
 #if 0
 	do{
 		rx_status = uart_rx();

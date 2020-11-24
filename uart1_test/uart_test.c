@@ -476,13 +476,28 @@ int main (int argc, char *argv[])
 	ImxPackageInfo_t ad_detect;
 	int time_out=100;
 	int rx_status=rx_status_init;
-	ad_detect.id = 0x00;
-	ad_detect.command = 0x0005;
-	ad_detect.Length = 0;
+	//ad_detect.id = 0x00;
+	//ad_detect.command = 0x0005;
+	//ad_detect.Length = 0;
 	u8 date[UART_DATA_BUFF_LEN];
 	//u8 date[UART_DATA_BUFF_LEN]={0x01,0x7d,0x00,0x00,0xb1,0x0d,0x02,0xc3,0x0a};
 	//u8 rx_buf[UART_DATA_BUFF_LEN]={0x00};
 	//_ad_date_format ad_date_set[8];
+	sscanf(argv[1],"%x",&ad_detect.id);
+	sscanf(argv[2],"%x",&ad_detect.command);
+	sscanf(argv[3],"%x",&ad_detect.Length);
+	//printf("%s\n",argv[1]);
+	//return 0;
+	//ad_detect.id = argv[1];
+	//ad_detect.command = argv[2];
+	//ad_detect.Length = argv[3];
+
+	for(i=0;i<ad_detect.Length;i++){
+		sscanf(argv[4+i],"%x",&date[i]);
+		//printf("date[%d] %02x\n",i,date[i]);
+	}
+
+	//return 0;
 
 #if 0
 	uart_tx(ad_detect,date);

@@ -26,8 +26,8 @@ int stringFind(const char *string, const char *dest) {
 
 int main()
 {
-	char buf[64]="upgrade uboot done !";
-	char buf2[12]="failed";
+	char *buf="4GCellularRouterQCA9563-upgrade_Vxxx.bin";
+	char *buf2="QCA9563";
 	int ret=0;
 	ret = stringFind(buf,buf2);
 	printf("%d %d\n",strlen(buf2),ret);

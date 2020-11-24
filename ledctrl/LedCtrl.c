@@ -80,6 +80,7 @@ int led_wifi2_timer=0;
 #define LED_WIFI2_FAULT 2
 #define LED_OFF_WIFI2 3
 
+static int i=0;
 
 static void  hc595_write(unsigned      short data)
 {
@@ -409,6 +410,43 @@ void led_set(int date){
 #endif
 }
 
+void led_test(int data)
+{
+	int flag;
+	flag=i%3;
+	switch(flag){
+		case 0:
+			led_control(LED_CLOUD_GREEN_ON,LED_CLOUD_BIT_MASK);
+			led_control(LED_LTE_4G_ON,LED_LTE_BIT_MASK);
+			led_control(LED_NMEA_GREEN_ON,LED_NMEA_BIT_MASK);
+			led_control(LED_WIFI1_GREEN_ON,LED_WIFI1_BIT_MASK);
+			led_control(LED_WIFI2_GREEN_ON,LED_WIFI2_BIT_MASK);
+		break;
+		case 1:
+			led_control(LED_CLOUD_RED_ON,LED_CLOUD_BIT_MASK);
+			led_control(LED_LTE_NO_SIG,LED_LTE_BIT_MASK);
+			led_control(LED_NMEA_RED_ON,LED_NMEA_BIT_MASK);
+			led_control(LED_WIFI1_RED_ON,LED_WIFI1_BIT_MASK);
+			led_control(LED_WIFI2_RED_ON,LED_WIFI2_BIT_MASK);
+		break;
+		case 2:
+			led_control(LED_CLOUD_ORANGE_ON,LED_CLOUD_BIT_MASK);
+			led_control(LED_LTE_3G_ON,LED_LTE_BIT_MASK);
+			led_control(LED_NMEA_ORANGE_ON,LED_NMEA_BIT_MASK);
+			led_control(LED_WIFI1_ORANGE_ON,LED_WIFI1_BIT_MASK);
+			led_control(LED_WIFI2_ORANGE_ON,LED_WIFI2_BIT_MASK);
+		break;
+		default:
+			led_control(LED_CLOUD_ORANGE_ON,LED_CLOUD_BIT_MASK);
+			led_control(LED_LTE_3G_ON,LED_LTE_BIT_MASK);
+			led_control(LED_NMEA_ORANGE_ON,LED_NMEA_BIT_MASK);
+			led_control(LED_WIFI1_ORANGE_ON,LED_WIFI1_BIT_MASK);
+			led_control(LED_WIFI2_ORANGE_ON,LED_WIFI2_BIT_MASK);
+		break;
+	}
+	i++;
+}
+
 int main(void)
 {
 	//turn 0;
@@ -430,16 +468,20 @@ int main(void)
 	//led_wifi2_status=LED_WIFI2_OFF;
 #endif
 #if 1
-	signal(SIGALRM, led_set);
+	signal(SIGALRM, led_test);
 	memset(&tick, 0, sizeof(tick));
 
+	tick.it_value.tv_sec = 1;
+	tick.it_value.tv_usec = 0;
+	tick.it_interval.tv_sec = 1;
+	tick.it_interval.tv_usec = 0;
 	//Timeout to run first time
-	tick.it_value.tv_sec = 0;
-	tick.it_value.tv_usec = 10*1000;
+	//tick.it_value.tv_sec = 0;
+	//tick.it_value.tv_usec = 10*1000;
 
 	//After first, the Interval time for clock
-	tick.it_interval.tv_sec = 0;
-	tick.it_interval.tv_usec = 10*1000;
+	//tick.it_interval.tv_sec = 0;
+	//tick.it_interval.tv_usec = 10*1000;
 
 	if(setitimer(ITIMER_REAL, &tick, NULL) < 0)
 	{
